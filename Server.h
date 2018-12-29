@@ -19,10 +19,10 @@ private:
     map<string, Player> m_data; // accoutID, Player obj
     string m_url; //request url
 public:
-    Server();
+    Server() = default;
     //name of server
-    Server(string name); 
-    ~Server();
+    Server(string name) : m_name(name) {}; 
+    ~Server() = default;
 
     void addPlayer(string playerName); //add player by name to map
     void downloadStats(string playerName); //download vector<Game>

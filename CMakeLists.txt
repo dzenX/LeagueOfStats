@@ -19,10 +19,9 @@ ExternalProject_Get_property( cpr SOURCE_DIR BINARY_DIR )
 
 include_directories ( ${SOURCE_DIR}/include )
 
-file ( GLOB CPP_FILES *.cpp )
-file ( GLOB H_FILES *.h )
+file ( GLOB CPP_FILES main.cpp Server.cpp PLayer.cpp Game.cpp )
 
-add_executable ( ${CMAKE_PROJECT_NAME} ${H_FILES} ${CPP_FILES} )
+add_executable ( ${CMAKE_PROJECT_NAME} ${CPP_FILES} )
 
 add_dependencies ( ${CMAKE_PROJECT_NAME} cpr )
 

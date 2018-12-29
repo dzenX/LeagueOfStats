@@ -12,10 +12,10 @@ private:
     int m_gameId;
     map<string, string> m_data;
 public:
-    Game();
+    Game() = default;
     //TODO: make <string,string>* args
     Game(map<string, string> data):m_data(data) {};
-    ~Game();
+    ~Game() = default;
 
     map<string, string> getGameData() { return m_data;};
 };
