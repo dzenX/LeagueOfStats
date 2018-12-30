@@ -22,7 +22,7 @@ private:
 public:
     Server() = default;
     //name of server
-    Server(string name) : m_name(name) {}; 
+    Server(string name) : m_name(name), m_url("https://" + name + ".api.riotgames.com/lol/") {}; 
     ~Server() = default;
 
     void addPlayer(string playerName); //add player by name to map
