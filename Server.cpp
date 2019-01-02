@@ -6,17 +6,22 @@
 namespace
 {
 
-string apiKey = "RGAPI-4ce6cdcd-aa7a-4f78-8c61-d43d9355375a";
-int32_t timeOut = 1000;
+auto apiKey = "RGAPI-4ce6cdcd-aa7a-4f78-8c61-d43d9355375a";
+auto timeOut = std::chrono::milliseconds(1000);
 
-/// Custom exception struct with support of std::string
-struct MyException : public std::exception
+/// Custom exception class with support of std::string
+class MyException: public std::exception
 {
-    string error_message;
-    MyException(std::string message) : error_message(message) { }
-    ~MyException() throw() {}
-    const char* what() const throw() { return error_message.c_str(); }
+private:
+    std::string m_message;
+public:
+    explicit MyException(const std::string& message) : m_message(message) {};
+    ~MyException() throw() {};
+    const char* what() const throw() { return m_message.c_str(); };
+    //void addWrap(const std::string& messageTop) { m_message = messageTop + m_message; };
+    //void addWrap(const std::string& messageTop, const std::string& messageBot) { m_message = messageTop + m_message + messageBot; };
 };
+
 
 /**
  *  Send get request to server
@@ -25,9 +30,9 @@ struct MyException : public std::exception
  * @param timeout Positive value in miliseconds to wait until request timeout.
  * @return string String with json-formatted text.
 */
-string getResponse(const string& request_url, const int32_t& timeout)
+string getResponse(const string& request_url, const std::chrono::milliseconds& timeout)
 {
-    cpr::Response response = cpr::Get(cpr::Url{request_url}, cpr::Timeout(timeout));
+    auto response = cpr::Get(cpr::Url{request_url}, cpr::Timeout(timeout));
     //std::cout << response.status_code << std::endl;
     /// status_code == 0 means we got empty respone.text
     // TODO: Do we need check if response.text is empty, so response is truly valid
@@ -36,21 +41,23 @@ string getResponse(const string& request_url, const int32_t& timeout)
     if (response.status_code == 200)
         return response.text;
     /// We got invalid response
-    string error_str = "Request to url: \"" + response.url + "\" failed.\n";
-    error_str += '[' + std::to_string(response.status_code) + "] ";
     switch (response.status_code)
     {
         /// If request timed out.
         case   0:
-            error_str += "Timeout set to: " + std::to_string(timeout) + " miliseconds. ";
-            error_str += "Elapsed in: " + std::to_string(response.elapsed);
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Timeout set to: " + std::to_string(timeout.count()) + " miliseconds. "
+            "Elapsed in: " + std::to_string(response.elapsed));
             break;
         /// If server wont give us access
         case 403:
-            error_str += "Forbidden: Wrong api key.";
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Forbidden: Wrong api key or url.");
             break;
     }   
-    throw MyException(error_str);
+    
 };
 
 /**
@@ -66,12 +73,11 @@ picojson::value getJson(const string& response)
     return jsonValue;
 }
 
-string getRequest(const string& m_url, const int& type, const string& parameter, const int32_t& timeout)
+string getRequest(const string& m_url, const int& type, const string& parameter, const std::chrono::milliseconds& timeout)
 {
     /// Produse request url
     /// https://<server name>.api.riotgames.com/lol/
-    string request_url = m_url;
-    
+    auto request_url = m_url;
     switch (type)
     {
         /// Get summoner info by name
@@ -83,24 +89,14 @@ string getRequest(const string& m_url, const int& type, const string& parameter,
             request_url += "match/v4/matchlists/by-account/";
             break;
         default:
-            std::cout << "U passed wrong type of get request.";
+            throw MyException("Request type: " + std::to_string(type) + " failed.\n"
+            "U passed wrong type of get request.");
+            //std::cout << "U passed wrong type of get request.";
             break;
     }
-
-    request_url = request_url + parameter + + "?api_key=" + apiKey;
-
-    /// Declaration of result variable for get request
-    string response;
-    try
-    {
-        /// Getting reponse from server with given timeout
-        response = getResponse(request_url, timeout); 
-    }
-    /// If we got invalid response
-    catch ( MyException& )
-    {
-        throw;
-    }
+    request_url += parameter + "?api_key=" + apiKey;
+    /// Getting reponse from server with given timeout
+    auto response = getResponse(request_url, timeout); 
     return response;
 }
 
@@ -130,9 +126,9 @@ void Server::addPlayer(string playerName)
     }
 
     /// Parsing response to picojson::value object
-    picojson::value jsonValue = getJson(response);
+    auto jsonValue = getJson(response);
     /// Getting accountId value from json formated without ""
-    string accountId = jsonValue.get("accountId").to_str();
+    auto accountId = jsonValue.get("accountId").to_str();
 
     /// Player object creation
     Player player(playerName, accountId, {});
@@ -155,12 +151,13 @@ void Server::downloadStats(string playerName)
     // TODO: Idk if we need this check cause we still have no interface
     if (searchPlayerId == m_dns.end())
         return;
-    string accountId = searchPlayerId->second;
+    auto accountId = searchPlayerId->second;
     
     // TODO: Should we check if Player exist in map if he`s exist in m_dns 
     // For now ill accept that he always present if exist in m_dns
-    auto searchPlayer = m_data.find(accountId);
-    Player player = searchPlayer->second;
+    //auto searchPlayer = m_data.find(accountId);
+    //auto player = searchPlayer->second;
+    auto player = m_data.find(accountId)->second;
 
 
     string response;
@@ -175,10 +172,10 @@ void Server::downloadStats(string playerName)
         return;
     }
 
-    picojson::value jsonValue = getJson(response);
-    picojson::object jsonObject = jsonValue.get<picojson::object>();
+    auto jsonValue = getJson(response);
+    auto jsonObject = jsonValue.get<picojson::object>();
 
-    picojson::array jsonArray =  jsonObject["matches"].get<picojson::array>();
+    auto jsonArray =  jsonObject["matches"].get<picojson::array>();
     std::cout << "Last game champion id: " << jsonArray[0].get("champion") << std::endl;
 
     
@@ -187,19 +184,6 @@ void Server::downloadStats(string playerName)
     // for  (auto i = list.begin(); i!= list.end(); i++)
     //     std::cout << i << std::endl;
     // //jsonValue = jsonValue.get("matches");
-    int totalGames = std::atoi(jsonValue.get("totalGames").to_str().c_str());
+    auto totalGames = std::atoi(jsonValue.get("totalGames").to_str().c_str());
     std::cout << "Total games downloaded: " << totalGames << std::endl;
 }
-
-// /**
-//  *  Function to get accountId of Player saved in Server by his name
-//  * 
-//  *  @param string Name of player to process.
-// */
-// string Server::m_getAccIddByName(string playerName)
-// {
-//     auto search = m_dns.find(playerName);
-//     if (search == m_dns.end())
-//         throw MyException("Player \"" + playerName + "\" not found.");
-//     return search->second;
-// }

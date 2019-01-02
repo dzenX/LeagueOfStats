@@ -19,8 +19,6 @@ private:
     map<string, string> m_dns; ///< map of <Player name, accountID>
     map<string, Player> m_data; ///< map of <accoutId, Player obj>
     string m_url; ///< Request url
-
-    //string m_getAccIddByName(string playerName); ///<
 public:
     Server() = default;
     //name of server
