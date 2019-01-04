@@ -120,7 +120,9 @@ string getResponse(const string& request_url, const std::chrono::milliseconds& t
  *  @param type Int value to make choise between differnt types of requests.
  *              0 - "summoner/v4/summoners/by-name/" - Get summoner info by name.
  *              1 - "match/v4/matchlists/by-account/" - Get summoner matchlist by accountId.
+ *  @param apiKey String contains current api key to pass with query parameters
  *  @param path_parameters Map of parameters requered by current type of request.
+ *  @param query_parameters Map of not requered parameters passing after url like "&param=val"
  *  @param timeout Timeout to pass to "getResponse".
  */
 string getRequest(
@@ -140,6 +142,7 @@ string getRequest(
         /// Get summoner info by name
         case 0:
             {
+            /// Check if requered parameter ixist in given path_parameters map
             auto playerName = path_parameters.find("playerName");
             if (playerName == path_parameters.end())
                 throw MyException("Request type: " + std::to_string(type) + " failed.\n"
@@ -150,6 +153,7 @@ string getRequest(
         /// Get summoner matchlist by accountId
         case 1:
             {
+            /// Check if requered parameter ixist in given path_parameters map
             auto accountId = path_parameters.find("accountId");
             if (accountId == path_parameters.end())
                 throw MyException("Request type: " + std::to_string(type) + " failed.\n"
@@ -230,9 +234,9 @@ void Server::downloadStats(string playerName)
     // TODO: Idk if we need this check cause we still have no interface
     if (searchPlayerId == m_dns.end())
         return;
+    /// Getting Player object to save downloaded games in
     auto accountId = searchPlayerId->second;
     auto player = m_data.find(accountId)->second;
-
     /// Form path parameters for get request
     std::map<string, string> pathParams;
     pathParams.insert(std::make_pair("accountId", accountId));
@@ -251,7 +255,6 @@ void Server::downloadStats(string playerName)
         std::cout << error.what() << std::endl;
         return;
     }
-
     /// Getting picojson::value from response
     auto jsonValue = getJson(response);
     /// Transform it to picojson::object
