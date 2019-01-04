@@ -6,8 +6,8 @@
 namespace
 {
 
-auto apiKey = "RGAPI-4dd4835f-bb9b-4107-989c-3b899c254073";
-auto timeOut = std::chrono::milliseconds(2000);
+auto gl_apiKey = "RGAPI-4dd4835f-bb9b-4107-989c-3b899c254073";
+auto gl_timeout = std::chrono::milliseconds(2000);
 
 /// Custom exception class with support of std::string
 class MyException: public std::exception
@@ -74,45 +74,105 @@ string getResponse(const string& request_url, const std::chrono::milliseconds& t
     }
 };
 
+// /**
+//  *  Produse url for get request based on given type and parameter and call "getResponse".
+//  * 
+//  *  @param m_url Head of server url to send requests.
+//  *  @param type Int value to make choise between differnt types of requests.
+//  *              0 - "summoner/v4/summoners/by-name/" - Get summoner info by name.
+//  *              1 - "match/v4/matchlists/by-account/" - Get summoner matchlist by accountId.
+//  *  @param parameter Parameter requered by current type of request.
+//  *  @param timeout Timeout to pass to "getResponse".
+//  */
+// // TODO: Should this function get not a parameter but a vector of parameter dependes on request type
+// // TODO: Discover LOL api
+// string getRequest(const string& m_url, const int& type, const string& parameter, const std::chrono::milliseconds& timeout)
+// {
+//     /// Produse request url
+//     /// https://<server name>.api.riotgames.com/lol/
+//     auto request_url = m_url;
+//     switch (type)
+//     {
+//         /// Get summoner info by name
+//         case 0:
+//             request_url += "summoner/v4/summoners/by-name/";
+//             break;
+//         /// Get summoner matchlist by accountId
+//         case 1:
+//             request_url += "match/v4/matchlists/by-account/";
+//             break;
+//         default:
+//             throw MyException("Request type: " + std::to_string(type) + " failed.\n"
+//             "U passed wrong type of get request.");
+//             //std::cout << "U passed wrong type of get request.";
+//             break;
+//     }
+//     request_url += parameter + "?api_key=" + apiKey;
+//     /// Getting reponse from server with given timeout
+//     auto response = getResponse(request_url, timeout);
+//     return response;
+// }
+
 /**
  *  Produse url for get request based on given type and parameter and call "getResponse".
  * 
- *  @param m_url Head of server url to send requests.
+ *  @param m_url Head of url to send requests to.
  *  @param type Int value to make choise between differnt types of requests.
  *              0 - "summoner/v4/summoners/by-name/" - Get summoner info by name.
  *              1 - "match/v4/matchlists/by-account/" - Get summoner matchlist by accountId.
- *  @param parameter Parameter requered by current type of request.
+ *  @param path_parameters Map of parameters requered by current type of request.
  *  @param timeout Timeout to pass to "getResponse".
  */
-// TODO: Should this function get not a parameter but a vector of parameter dependes on request type
-// TODO: Discover LOL api
-string getRequest(const string& m_url, const int& type, const string& parameter, const std::chrono::milliseconds& timeout)
+string getRequest(
+    const string& url,
+    const int& type,
+    const string& apiKey,
+    const std::map<string, string>& path_parameters,
+    const std::map<string, string>& query_parameters,
+    const std::chrono::milliseconds& timeout)
 {
+    // TODO: Do i need to overload this func w/ query parameters or just pass empty map?
     /// Produse request url
     /// https://<server name>.api.riotgames.com/lol/
-    auto request_url = m_url;
+    auto request_url = url;
     switch (type)
     {
         /// Get summoner info by name
         case 0:
-            request_url += "summoner/v4/summoners/by-name/";
+            {
+            auto playerName = path_parameters.find("playerName");
+            if (playerName == path_parameters.end())
+                throw MyException("Request type: " + std::to_string(type) + " failed.\n"
+                "U passed wrong path parameters, \"playerName\" needs to be passed.");
+            request_url += "summoner/v4/summoners/by-name/" + playerName->second;
             break;
+            }
         /// Get summoner matchlist by accountId
         case 1:
-            request_url += "match/v4/matchlists/by-account/";
+            {
+            auto accountId = path_parameters.find("accountId");
+            if (accountId == path_parameters.end())
+                throw MyException("Request type: " + std::to_string(type) + " failed.\n"
+                "U passed wrong path parameters, \"accountId\" needs to be passed.");
+            request_url += "match/v4/matchlists/by-account/" + accountId->second;
             break;
+            }
         default:
+            {
             throw MyException("Request type: " + std::to_string(type) + " failed.\n"
             "U passed wrong type of get request.");
-            //std::cout << "U passed wrong type of get request.";
+            // TODO: Do we need this break; here ? hmm...
             break;
+            }
     }
-    request_url += parameter + "?api_key=" + apiKey;
+    request_url += "?api_key=" + apiKey;
+    /// Adding all passed query parameters to request url like "api_key=<some-key>&"
+    for (auto it = query_parameters.begin(); it != query_parameters.end(); it++)
+        request_url += '&' + it->first + '=' + it->second;
     /// Getting reponse from server with given timeout
     auto response = getResponse(request_url, timeout);
     return response;
 }
-
 
 } /// Anonimous namespace
 
@@ -124,17 +184,22 @@ string getRequest(const string& m_url, const int& type, const string& parameter,
 */
 void Server::addPlayer(string playerName)
 {
+    /// Form path parameters for get request
+    std::map<string, string> pathParams;
+    pathParams.insert(std::make_pair("playerName", playerName));
     /// Declaration of result variable for "getRequest()"
     string response;
     try
     {
-        response = getRequest(m_url, 0, playerName, timeOut);
+        /// Second param means type of request: 0 - getting player info by name
+        /// Also we dont need any query params so empty map was passed
+        response = getRequest(m_url, 0, gl_apiKey, pathParams,
+                    std::map<string, string>{}, gl_timeout);
     }
     catch( MyException& error)
     {
         std::cout << "[ERROR] An error occurred while adding player \"" + playerName + "\"." << std::endl;
         std::cout << error.what() << std::endl;
-        //throw;
         return;
     }
 
@@ -166,18 +231,19 @@ void Server::downloadStats(string playerName)
     if (searchPlayerId == m_dns.end())
         return;
     auto accountId = searchPlayerId->second;
-
-    // TODO: Should we check if Player exist in map if he`s exist in m_dns 
-    // For now ill accept that he always present if exist in m_dns
-    //auto searchPlayer = m_data.find(accountId);
-    //auto player = searchPlayer->second;
     auto player = m_data.find(accountId)->second;
 
+    /// Form path parameters for get request
+    std::map<string, string> pathParams;
+    pathParams.insert(std::make_pair("accountId", accountId));
     /// Declaration of result variable for "getRequest()"
     string response;
     try
     {
-        response = getRequest(m_url, 1, accountId, timeOut);
+        /// Second param means type of request: 1 - getting player`s matchlist
+        /// Also we dont need any query params so empty map was passed
+        response = getRequest(m_url, 1, gl_apiKey, pathParams,
+                    std::map<string, string>{}, gl_timeout);
     }
     catch ( MyException& error )
     {
@@ -193,19 +259,18 @@ void Server::downloadStats(string playerName)
     /// Get picojson::array of matches form our jsonObject
     auto matchesArray =  jsonObject["matches"].get<picojson::array>();
     /// For each "match" as picojson::value
-    for(auto i = matchesArray.begin(); i != matchesArray.end(); i++)
+    for(auto it = matchesArray.begin(); it != matchesArray.end(); it++)
     {
         /// Get picojson::object form current match picojson::value
-        auto matchObject = i->get<picojson::object>();
+        auto matchObject = it->get<picojson::object>();
         /// Declaration of map to pass in Game object
         map<string, string> gameMap;
-        std::cout << matchObject["queue"] << std::endl;
+        //std::cout << matchObject["queue"] << std::endl;
         /// For each parameter from match picojson::object
-        for(auto j = matchObject.begin(); j != matchObject.end(); j++)
+        for(auto jt = matchObject.begin(); jt != matchObject.end(); jt++)
         {
             /// Form map of match parameters
-            gameMap.insert(std::make_pair(j->first,j->second.to_str()));
-            //std::cout << j->first << " : " << j->second.to_str() << std::endl;
+            gameMap.insert(std::make_pair(jt->first,jt->second.to_str()));
         }
         /// Create of Game object and pass gameMap to it
         auto game  = Game(gameMap);
