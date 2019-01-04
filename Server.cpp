@@ -6,7 +6,7 @@
 namespace
 {
 
-auto apiKey = "RGAPI-848cb3bf-1b82-4d9c-b134-9ab469a4bcd0";
+auto apiKey = "RGAPI-4dd4835f-bb9b-4107-989c-3b899c254073";
 auto timeOut = std::chrono::milliseconds(2000);
 
 /// Custom exception class with support of std::string
@@ -37,7 +37,7 @@ string getResponse(const string& request_url, const std::chrono::milliseconds& t
     /// status_code == 0 means we got empty respone.text
     // TODO: Do we need check if response.text is empty, so response is truly valid
     // || response.text.empty(). We`ll get runtime in getting parsing json if empty
-    
+
     if (response.status_code == 200)
         return response.text;
     /// We got invalid response
@@ -50,14 +50,79 @@ string getResponse(const string& request_url, const std::chrono::milliseconds& t
             "Timeout set to: " + std::to_string(timeout.count()) + " miliseconds. "
             "Elapsed in: " + std::to_string(response.elapsed));
             break;
+        /// Bad request
+        case 400:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Bad request.");
+            break;
+        /// Unauthorized
+        case 401:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Unauthorized.");
+            break;
         /// If server wont give us access
         case 403:
             throw MyException("Request to url: \"" + response.url + "\" failed.\n"
             "[" + std::to_string(response.status_code) + "] "
             "Forbidden: Wrong api key or url.");
             break;
-    }   
-    
+        /// Data not found
+        case 404:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Data not found");
+            break;
+        /// Method not allowed
+        case 405:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Method not allowed.");
+            break;
+        /// Unsupported media type
+        case 415:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Unsupported media type.");
+            break;
+        /// Rate limit exceeded (too many requests)
+        case 429:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Rate limit exceeded (too many requests).");
+            break;
+        /// Internal server error
+        case 500:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Internal server error.");
+            break;
+        /// Bad gateway
+        case 502:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Bad gateway.");
+            break;
+        /// Service unavailable (RIOT api is down)
+        case 503:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Service unavailable (RIOT api is down).");
+            break;
+        /// Service timeout
+        case 504:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Service timeout.");
+            break;
+        /// Strange error
+        default:
+            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
+            "[" + std::to_string(response.status_code) + "] "
+            "Unknown server error:\n" + response.text);
+            break;
+    }
 };
 
 /**
@@ -108,7 +173,7 @@ string getRequest(const string& m_url, const int& type, const string& parameter,
     }
     request_url += parameter + "?api_key=" + apiKey;
     /// Getting reponse from server with given timeout
-    auto response = getResponse(request_url, timeout); 
+    auto response = getResponse(request_url, timeout);
     return response;
 }
 
@@ -122,13 +187,13 @@ string getRequest(const string& m_url, const int& type, const string& parameter,
  * @param string Name of player to add.
 */
 void Server::addPlayer(string playerName)
-{  
+{
     /// Declaration of result variable for "getRequest()"
     string response;
     try
     {
         response = getRequest(m_url, 0, playerName, timeOut);
-    }  
+    }
     catch( MyException& error)
     {
         std::cout << "[ERROR] An error occurred while adding player \"" + playerName + "\"." << std::endl;
@@ -165,7 +230,7 @@ void Server::downloadStats(string playerName)
     if (searchPlayerId == m_dns.end())
         return;
     auto accountId = searchPlayerId->second;
-    
+
     // TODO: Should we check if Player exist in map if he`s exist in m_dns 
     // For now ill accept that he always present if exist in m_dns
     //auto searchPlayer = m_data.find(accountId);
@@ -177,7 +242,7 @@ void Server::downloadStats(string playerName)
     try
     {
         response = getRequest(m_url, 1, accountId, timeOut);
-    } 
+    }
     catch ( MyException& error )
     {
         std::cout << "An error occurred while downloading stats for \"" + playerName + "\" :" << std::endl;
@@ -198,6 +263,7 @@ void Server::downloadStats(string playerName)
         auto matchObject = i->get<picojson::object>();
         /// Declaration of map to pass in Game object
         map<string, string> gameMap;
+        std::cout << matchObject["queue"] << std::endl;
         /// For each parameter from match picojson::object
         for(auto j = matchObject.begin(); j != matchObject.end(); j++)
         {
@@ -212,6 +278,6 @@ void Server::downloadStats(string playerName)
         /// Adding Game object to player(saving in m_games by .push_back())
         player.addGame(game);
     }
-    std::cout << "For player \"" << playerName << "\" downloaded " 
+    std::cout << "For player \"" << playerName << "\" downloaded "
     << std::stoi(jsonValue.get("totalGames").to_str()) << " games." << std::endl;
 }
