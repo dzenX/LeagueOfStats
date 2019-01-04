@@ -22,6 +22,18 @@ public:
     //void addWrap(const std::string& messageTop, const std::string& messageBot) { m_message = messageTop + m_message + messageBot; };
 };
 
+/**
+ *  Procces input string into picojson::value object.
+ * 
+ * @param response String with json-formatted text.
+ * @return picojson::value Created picojson::value object.
+*/
+picojson::value getJson(const string& response)
+{
+    picojson::value jsonValue;
+    picojson::parse(jsonValue, response);
+    return jsonValue;
+}
 
 /**
  *  Send get request to server.
@@ -37,7 +49,6 @@ string getResponse(const string& request_url, const std::chrono::milliseconds& t
     /// status_code == 0 means we got empty respone.text
     // TODO: Do we need check if response.text is empty, so response is truly valid
     // || response.text.empty(). We`ll get runtime in getting parsing json if empty
-
     if (response.status_code == 200)
         return response.text;
     /// We got invalid response
@@ -50,93 +61,18 @@ string getResponse(const string& request_url, const std::chrono::milliseconds& t
             "Timeout set to: " + std::to_string(timeout.count()) + " miliseconds. "
             "Elapsed in: " + std::to_string(response.elapsed));
             break;
-        /// Bad request
-        case 400:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Bad request.");
-            break;
-        /// Unauthorized
-        case 401:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Unauthorized.");
-            break;
         /// If server wont give us access
-        case 403:
+        case 400:
             throw MyException("Request to url: \"" + response.url + "\" failed.\n"
             "[" + std::to_string(response.status_code) + "] "
             "Forbidden: Wrong api key or url.");
             break;
-        /// Data not found
-        case 404:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Data not found");
-            break;
-        /// Method not allowed
-        case 405:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Method not allowed.");
-            break;
-        /// Unsupported media type
-        case 415:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Unsupported media type.");
-            break;
-        /// Rate limit exceeded (too many requests)
-        case 429:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Rate limit exceeded (too many requests).");
-            break;
-        /// Internal server error
-        case 500:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Internal server error.");
-            break;
-        /// Bad gateway
-        case 502:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Bad gateway.");
-            break;
-        /// Service unavailable (RIOT api is down)
-        case 503:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Service unavailable (RIOT api is down).");
-            break;
-        /// Service timeout
-        case 504:
-            throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Service timeout.");
-            break;
-        /// Strange error
         default:
             throw MyException("Request to url: \"" + response.url + "\" failed.\n"
-            "[" + std::to_string(response.status_code) + "] "
-            "Unknown server error:\n" + response.text);
+            "[" + std::to_string(response.status_code) + "] " + getJson(response.text).get("status").get("message").to_str());
             break;
     }
 };
-
-/**
- *  Procces input string into picojson::value object.
- * 
- * @param response String with json-formatted text.
- * @return picojson::value Created picojson::value object.
-*/
-picojson::value getJson(const string& response)
-{
-    picojson::value jsonValue;
-    picojson::parse(jsonValue, response);
-    return jsonValue;
-}
 
 /**
  *  Produse url for get request based on given type and parameter and call "getResponse".
