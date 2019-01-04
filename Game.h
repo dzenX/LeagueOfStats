@@ -9,7 +9,7 @@ using std::string;
 
 class Game{
 private:
-    int m_gameId;
+    string m_gameId;
     map<string, string> m_data;
 public:
     Game() = default;
@@ -18,4 +18,6 @@ public:
     ~Game() = default;
 
     map<string, string> getGameData() { return m_data;};
+    void setGameId(string gameId) { m_gameId = gameId; };
+    string getGameId() { return m_gameId; };
 };

@@ -6,8 +6,8 @@
 namespace
 {
 
-auto apiKey = "RGAPI-4ce6cdcd-aa7a-4f78-8c61-d43d9355375a";
-auto timeOut = std::chrono::milliseconds(1000);
+auto apiKey = "RGAPI-848cb3bf-1b82-4d9c-b134-9ab469a4bcd0";
+auto timeOut = std::chrono::milliseconds(2000);
 
 /// Custom exception class with support of std::string
 class MyException: public std::exception
@@ -24,7 +24,7 @@ public:
 
 
 /**
- *  Send get request to server
+ *  Send get request to server.
  * 
  * @param url Full URL of get request include "?api_key=<api-key>" in the end.
  * @param timeout Positive value in miliseconds to wait until request timeout.
@@ -61,10 +61,10 @@ string getResponse(const string& request_url, const std::chrono::milliseconds& t
 };
 
 /**
- *  Procces input string into picojson::value object
+ *  Procces input string into picojson::value object.
  * 
- * @param response String with json-formatted text
- * @return picojson::value Created picojson::value object
+ * @param response String with json-formatted text.
+ * @return picojson::value Created picojson::value object.
 */
 picojson::value getJson(const string& response)
 {
@@ -73,6 +73,18 @@ picojson::value getJson(const string& response)
     return jsonValue;
 }
 
+/**
+ *  Produse url for get request based on given type and parameter and call "getResponse".
+ * 
+ *  @param m_url Head of server url to send requests.
+ *  @param type Int value to make choise between differnt types of requests.
+ *              0 - "summoner/v4/summoners/by-name/" - Get summoner info by name.
+ *              1 - "match/v4/matchlists/by-account/" - Get summoner matchlist by accountId.
+ *  @param parameter Parameter requered by current type of request.
+ *  @param timeout Timeout to pass to "getResponse".
+ */
+// TODO: Should this function get not a parameter but a vector of parameter dependes on request type
+// TODO: Discover LOL api
 string getRequest(const string& m_url, const int& type, const string& parameter, const std::chrono::milliseconds& timeout)
 {
     /// Produse request url
@@ -84,7 +96,7 @@ string getRequest(const string& m_url, const int& type, const string& parameter,
         case 0:
             request_url += "summoner/v4/summoners/by-name/";
             break;
-        /// Get summoner match-list by accountId
+        /// Get summoner matchlist by accountId
         case 1:
             request_url += "match/v4/matchlists/by-account/";
             break;
@@ -104,14 +116,14 @@ string getRequest(const string& m_url, const int& type, const string& parameter,
 } /// Anonimous namespace
 
 /**
- *  Function to create Player object for given playerName
- *  and add it to container.
+ *  Function to download player data for given playerName,
+ *  create Player object depends on it and add object to container.
  * 
  * @param string Name of player to add.
 */
 void Server::addPlayer(string playerName)
 {  
-    /// Declaration of result variable for get request
+    /// Declaration of result variable for "getRequest()"
     string response;
     try
     {
@@ -119,7 +131,7 @@ void Server::addPlayer(string playerName)
     }  
     catch( MyException& error)
     {
-        std::cout << "[ERROR] An error occurred while adding player." << std::endl;
+        std::cout << "[ERROR] An error occurred while adding player \"" + playerName + "\"." << std::endl;
         std::cout << error.what() << std::endl;
         //throw;
         return;
@@ -141,7 +153,8 @@ void Server::addPlayer(string playerName)
 }
 
 /**
- *  Function to download and form std::vector of Game objects
+ *  Function to download games data, produse Game objects 
+ *  and pass it to given player.
  * 
  *  @param string Name of player to process.
 */
@@ -159,7 +172,7 @@ void Server::downloadStats(string playerName)
     //auto player = searchPlayer->second;
     auto player = m_data.find(accountId)->second;
 
-
+    /// Declaration of result variable for "getRequest()"
     string response;
     try
     {
@@ -167,23 +180,38 @@ void Server::downloadStats(string playerName)
     } 
     catch ( MyException& error )
     {
-        std::cout << "An error occurred while downloading stats:" << std::endl;
+        std::cout << "An error occurred while downloading stats for \"" + playerName + "\" :" << std::endl;
         std::cout << error.what() << std::endl;
         return;
     }
 
+    /// Getting picojson::value from response
     auto jsonValue = getJson(response);
+    /// Transform it to picojson::object
     auto jsonObject = jsonValue.get<picojson::object>();
-
-    auto jsonArray =  jsonObject["matches"].get<picojson::array>();
-    std::cout << "Last game champion id: " << jsonArray[0].get("champion") << std::endl;
-
-    
-    
-    // picojson::array list =jsonValue.get("matches").get<picojson::array>();
-    // for  (auto i = list.begin(); i!= list.end(); i++)
-    //     std::cout << i << std::endl;
-    // //jsonValue = jsonValue.get("matches");
-    auto totalGames = std::atoi(jsonValue.get("totalGames").to_str().c_str());
-    std::cout << "Total games downloaded: " << totalGames << std::endl;
+    /// Get picojson::array of matches form our jsonObject
+    auto matchesArray =  jsonObject["matches"].get<picojson::array>();
+    /// For each "match" as picojson::value
+    for(auto i = matchesArray.begin(); i != matchesArray.end(); i++)
+    {
+        /// Get picojson::object form current match picojson::value
+        auto matchObject = i->get<picojson::object>();
+        /// Declaration of map to pass in Game object
+        map<string, string> gameMap;
+        /// For each parameter from match picojson::object
+        for(auto j = matchObject.begin(); j != matchObject.end(); j++)
+        {
+            /// Form map of match parameters
+            gameMap.insert(std::make_pair(j->first,j->second.to_str()));
+            //std::cout << j->first << " : " << j->second.to_str() << std::endl;
+        }
+        /// Create of Game object and pass gameMap to it
+        auto game  = Game(gameMap);
+        /// Setting m_gameId of created Game object from json
+        game.setGameId(matchObject["gameId"].to_str());
+        /// Adding Game object to player(saving in m_games by .push_back())
+        player.addGame(game);
+    }
+    std::cout << "For player \"" << playerName << "\" downloaded " 
+    << std::stoi(jsonValue.get("totalGames").to_str()) << " games." << std::endl;
 }
