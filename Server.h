@@ -2,6 +2,7 @@
 
 #include "Player.h"
 #include "Game.h"
+#include "Wrapper.h"
 
 #include <map>
 #include <string>
@@ -18,11 +19,11 @@ private:
     time_t m_lastUpdate;
     map<string, string> m_dns; ///< map of <Player name, accountID>
     map<string, Player> m_data; ///< map of <accoutId, Player obj>
-    string m_url; ///< Request url
+    Wrapper m_wrap; ///< Current wrapper for requests
 public:
     Server() = default;
     //name of server
-    Server(string name) : m_name(name), m_url("https://" + name + ".api.riotgames.com/lol/") {}; 
+    Server(string name, Wrapper wrap) : m_name(name), m_wrap(wrap) {};
     ~Server() = default;
 
     void addPlayer(string playerName); ///< Add player by name to map
