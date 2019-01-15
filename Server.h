@@ -2,7 +2,6 @@
 
 #include "Player.h"
 #include "Game.h"
-#include "Wrapper.h"
 
 #include <map>
 #include <string>
@@ -10,7 +9,7 @@
 
 using std::map;
 using std::string;
-using std::vector;
+using std::vector; // TODO: 0_0 Where do we use this ?
 
 class Server 
 {
@@ -19,13 +18,10 @@ private:
     time_t m_lastUpdate;
     map<string, string> m_dns; ///< map of <Player name, accountID>
     map<string, Player> m_data; ///< map of <accoutId, Player obj>
-    Wrapper m_wrap; ///< Current wrapper for requests
 public:
-    Server() = default;
-    //name of server
-    Server(string name, Wrapper wrap) : m_name(name), m_wrap(wrap) {};
+    Server(const string& serverName) : m_name(serverName) {};
     ~Server() = default;
 
-    void addPlayer(string playerName); ///< Add player by name to map
-    void downloadStats(string playerName); ///< Download vector<Game>
+    void addPlayer(const string& playerName); ///< Add player by name to map
+    void downloadStats(const string& playerName); ///< Download vector<Game>
 };

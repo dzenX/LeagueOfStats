@@ -1,26 +1,47 @@
 #include "Server.h"
+#include "Wrapper.h"
 
 #include "Utils.h"
 
 #include "picojson.h"
 #include <cpr/cpr.h>
 
-/**
- *  Function to download player data for given playerName,
- *  create Player object depends on it and add object to container.
- * 
- * @param string Name of player to add.
-*/
-void Server::addPlayer(string playerName)
+namespace
 {
-    /// Form path parameters for get request
-    std::map<string, string> pathParams;
-    pathParams.insert(std::make_pair("playerName", playerName));
+    
+// Temp vaiable to store api key while we have no working apikeymanager
+std::string g_apiKey= "RGAPI-bc1d97e0-2fc3-4c35-ac35-f6a0b166c8dd";
+
+/**
+ *  Function to form std::map with api key parameter
+ * 
+ * @param apiKey String with current api key to pass to get request as query param.
+ * @return std::map Map with "api_key" - "<passed key>"
+ */
+std::map<string, string> getMapWithApiKey(std::string apiKey)
+{
+    std::map<string, string> map;
+    map.insert(std::make_pair("api_key", apiKey));
+    return map;
+}
+
+} /// Anonimous namespace
+
+/**
+ * Function to download player data for given playerName,
+ * create Player object depends on it and add object to container.
+ * 
+ * @param playerName String with name of player to add.
+*/
+void Server::addPlayer(const string& playerName)
+{
+    /// Form map of of query parameters for get request with api key included
+    auto queryParameters = getMapWithApiKey(g_apiKey);
     /// Declaration of result variable for "getRequest()"
     string response;
     try
     {
-        response = m_wrap.getSummonerInfoByName(m_name, playerName, {});
+        response = Wrapper::getSummonerInfoByName(m_name, playerName, queryParameters);
     }
     catch( std::runtime_error& error)
     {
@@ -28,19 +49,17 @@ void Server::addPlayer(string playerName)
         std::cout << error.what() << std::endl;
         return;
     }
-
     /// Parsing response to picojson::value object
     auto jsonValue = getJson(response);
     /// Getting accountId value from json formated without ""
     auto accountId = jsonValue.get("accountId").to_str();
-
     /// Player object creation
     Player player(playerName, accountId, {});
     /// Saving relation between playerName and accountId to std::map
     m_dns.insert(std::make_pair(playerName, accountId));
     /// Saving Player object to std::map using accountId
     m_data.insert(std::make_pair(accountId, player));
-
+    /// Success message
     std::cout << "Player \"" << playerName << "\" succesfully added." << std::endl;
 }
 
@@ -48,9 +67,9 @@ void Server::addPlayer(string playerName)
  *  Function to download games data, produse Game objects 
  *  and pass it to given player.
  * 
- *  @param string Name of player to process.
+ * @param playerName String with name of player to process.
 */
-void Server::downloadStats(string playerName)
+void Server::downloadStats(const string& playerName)
 {
     auto searchPlayerId = m_dns.find(playerName);
     // TODO: Idk if we need this check cause we still have no interface
@@ -59,14 +78,13 @@ void Server::downloadStats(string playerName)
     /// Getting Player object to save downloaded games in
     auto accountId = searchPlayerId->second;
     auto player = m_data.find(accountId)->second;
-    /// Form path parameters for get request
-    std::map<string, string> pathParams;
-    pathParams.insert(std::make_pair("accountId", accountId));
+    /// Form map of of query parameters for get request with api key included
+    auto queryParameters = getMapWithApiKey(g_apiKey);
     /// Declaration of result variable for get request
     string response;
     try
     {
-        response = m_wrap.getMatchlistsByAccountId(m_name, accountId, {});
+        response = Wrapper::getMatchlistsByAccountId(m_name, accountId, queryParameters);
     }
     catch ( std::runtime_error& error )
     {
@@ -101,6 +119,7 @@ void Server::downloadStats(string playerName)
         /// Adding Game object to player(saving in m_games by .push_back())
         player.addGame(game);
     }
+    /// Success message
     std::cout << "For player \"" << playerName << "\" downloaded "
     << std::stoi(jsonValue.get("totalGames").to_str()) << " games." << std::endl;
 }
