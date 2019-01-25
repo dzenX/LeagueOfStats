@@ -2,21 +2,21 @@
 
 #include <string>
 #include <chrono>
+#include <thread>
 
 class ApiKeyManager
 {
 private:
     std::string m_apiKey; ///< Actually api key
     std::chrono::hours m_updateTime; ///< Frequency of api key updates
+    std::thread m_thread;
 
     // TODO: Implement and change param list 
     void getNewApiKey(); ///< Function to uptade current api key
 public:
     /// Constructor with default value of api key update time
-    ApiKeyManager(const std::chrono::hours& updateTime = std::chrono::hours(12)) : m_updateTime(updateTime) {};
+    explicit ApiKeyManager(const std::chrono::hours& updateTime);
     ~ApiKeyManager() =  default;
-
-    void mainThread(); ///< Function to update api key every X hours
 
     /// Function to changed frequency of api key updating
     void setUpdateTime(const std::chrono::hours& updateTime) { m_updateTime = updateTime; };

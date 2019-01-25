@@ -18,10 +18,10 @@ std::string g_apiKey= "RGAPI-bc1d97e0-2fc3-4c35-ac35-f6a0b166c8dd";
  * @param apiKey String with current api key to pass to get request as query param.
  * @return std::map Map with "api_key" - "<passed key>"
  */
-std::map<string, string> getMapWithApiKey(std::string apiKey)
+std::map<string, string> getMapWithApiKey(const std::string& apiKey)
 {
     std::map<string, string> map;
-    map.insert(std::make_pair("api_key", apiKey));
+    map.insert({"api_key", apiKey});
     return map;
 }
 
